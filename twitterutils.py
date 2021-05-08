@@ -24,6 +24,10 @@ import os
 import time
 import tweepy
 from tweepy.error import TweepError
+import urllib.parse
+import requests
+from requests.auth import AuthBase
+import json
 
 # Bearer Token
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
@@ -113,3 +117,104 @@ def get_tweets(count = 800, verbose=True):
         print("Found " + str(len(ret)) + " tweets")
 
     return ret
+
+# V2 APIs
+def _get_recent_tweets(query, next_token, num_results):
+    SEARCH_URL = "https://api.twitter.com/2/tweets/search/recent?query="
+    MAX_RESULTS_PER_QUERY = 100
+    MIN_RESULTS_PER_QUERY = 10
+    OPTIONS = f"&expansions=attachments.media_keys&tweet.fields=created_at,author_id,lang,source,public_metrics,context_annotations,entities"
+
+    num_results = min(num_results, MAX_RESULTS_PER_QUERY)
+    num_results = max(num_results, MIN_RESULTS_PER_QUERY)
+
+    url = f"{SEARCH_URL}{query}{OPTIONS}&max_results={num_results}"
+
+    if (next_token != None):
+        url = f"{url}&next_token={next_token}"
+
+    header = {"Authorization": f"Bearer {BEARER_TOKEN}"}
+    response = requests.get(url, headers=header)
+
+    if response.status_code != 200:
+        print (f"Error with request (HTTP error code: {response.status_code} - {response.reason}")
+
+    return response
+    
+
+def recent_search_query(input_query, output_file, place=None, max_results = 3000, verbose=False):
+    query = urllib.parse.quote(input_query)
+
+    #As we page through results, we will be counting these: 
+    request_count = 0
+    tweet_count = 0
+    total_tweet_count=0
+
+    query_result = []
+    next_token = None
+
+    consecutive_zero_query = 0
+    MAX_CONSECUTIVE_ZERO_QUERIES = 5
+
+    while tweet_count < max_results and consecutive_zero_query <= MAX_CONSECUTIVE_ZERO_QUERIES:
+        #loop body
+        request_count += 1
+        if (place is None):
+            response = _get_recent_tweets(query, next_token, max_results-tweet_count)
+        else:
+            response = _get_recent_tweets(query, next_token, max(max_results-tweet_count, 50))
+        parsed = json.loads(response.text)
+
+        raw_data = parsed["data"]
+
+        if (place is None):
+            data = raw_data
+        else:
+            data = []
+            for tweet in raw_data:
+                try:
+                    for annotation in tweet['entities']['annotations']:
+                        if (annotation['type'] == "Place" and
+                            annotation['probability'] > 0.5 and
+                            place in annotation['normalized_text']):
+                            data.append(tweet)
+                except KeyError:
+                    continue
+
+        query_result += data
+
+        try:
+            next_token  = parsed['meta']['next_token']
+        except KeyError:
+            next_token = None
+
+        try:
+            if (place is None):
+                tweet_count  += parsed['meta']['result_count']
+            else:
+                total_tweet_count += parsed['meta']['result_count']
+                tweet_count += len(data)
+                if (tweet_count > 0):
+                    consecutive_zero_query = 0
+                else:
+                    consecutive_zero_query += 1
+        except KeyError:
+            pass
+
+        if (next_token is None): break
+
+        time.sleep(2)
+
+    if (verbose):
+        if (place is None):
+            print(f"Made {request_count} requests and received {tweet_count} Tweets from Query: {input_query}")
+        else:
+            print(f"Made {request_count} requests and received {total_tweet_count} Tweets of which {tweet_count} were relevant from Query: {input_query}")
+    try:
+        with open(output_file, 'w') as outfile:
+            json.dump(query_result, outfile)
+    except:
+        print("Printing to output file failed: " + outfile + " dumping to temp.txt")
+        with open("temp.txt", 'w') as outfile:
+            json.dump(query_result, outfile)
+
