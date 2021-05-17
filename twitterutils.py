@@ -134,10 +134,24 @@ def _get_recent_tweets(query, next_token, num_results):
         url = f"{url}&next_token={next_token}"
 
     header = {"Authorization": f"Bearer {BEARER_TOKEN}"}
-    response = requests.get(url, headers=header)
 
-    if response.status_code != 200:
-        print (f"Error with request (HTTP error code: {response.status_code} - {response.reason}")
+    response = dict()
+
+    attempts = 3
+
+    while attempts > 0:
+        attempts = attempts-1
+        response = requests.get(url, headers=header)
+
+        if response.status_code == 200:
+            # Success
+            break
+        elif response.status_code == 503:
+            print (f"Error with request (HTTP error code: {response.status_code} - {response.reason} - sleeping 30 seconds")
+            time.sleep(30)
+        elif response.status_code != 200:
+            print (f"Error with request (HTTP error code: {response.status_code} - {response.reason} - sleeping 60 seconds")
+            time.sleep(60)
 
     return response
     
