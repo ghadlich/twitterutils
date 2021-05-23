@@ -28,6 +28,7 @@ import urllib.parse
 import requests
 from requests.auth import AuthBase
 import json
+from tqdm.auto import tqdm
 
 # Bearer Token
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
@@ -170,65 +171,67 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
     consecutive_zero_query = 0
     MAX_CONSECUTIVE_ZERO_QUERIES = 5
 
-    while tweet_count < max_results and consecutive_zero_query <= MAX_CONSECUTIVE_ZERO_QUERIES:
-        #loop body
-        request_count += 1
-        if (place is None):
-            response = _get_recent_tweets(query, next_token, max_results-tweet_count)
-        else:
-            response = _get_recent_tweets(query, next_token, max(max_results-tweet_count, 50))
-        parsed = json.loads(response.text)
-
-        raw_data = parsed["data"]
-
-        if (place is None):
-            data = raw_data
-        else:
-            data = []
-            for tweet in raw_data:
-                try:
-                    for annotation in tweet['entities']['annotations']:
-                        if (annotation['type'] == "Place" and
-                            annotation['probability'] > 0.5 and
-                            place in annotation['normalized_text']):
-                            data.append(tweet)
-                except KeyError:
-                    continue
-
-        query_result += data
-
-        try:
-            next_token  = parsed['meta']['next_token']
-        except KeyError:
-            next_token = None
-
-        try:
+    with tqdm(total=max_results, position=0, leave=True, desc=output_file) as pbar:
+        while tweet_count < max_results and consecutive_zero_query <= MAX_CONSECUTIVE_ZERO_QUERIES:
+            #loop body
+            request_count += 1
             if (place is None):
-                tweet_count  += parsed['meta']['result_count']
+                response = _get_recent_tweets(query, next_token, max_results-tweet_count)
             else:
-                total_tweet_count += parsed['meta']['result_count']
-                tweet_count += len(data)
-                if (tweet_count > 0):
-                    consecutive_zero_query = 0
+                response = _get_recent_tweets(query, next_token, max(max_results-tweet_count, 50))
+            parsed = json.loads(response.text)
+
+            raw_data = parsed["data"]
+
+            if (place is None):
+                data = raw_data
+            else:
+                data = []
+                for tweet in raw_data:
+                    try:
+                        for annotation in tweet['entities']['annotations']:
+                            if (annotation['type'] == "Place" and
+                                annotation['probability'] > 0.5 and
+                                place in annotation['normalized_text']):
+                                data.append(tweet)
+                    except KeyError:
+                        continue
+
+            query_result += data
+
+            try:
+                next_token  = parsed['meta']['next_token']
+            except KeyError:
+                next_token = None
+
+            try:
+                if (place is None):
+                    tweet_count  += parsed['meta']['result_count']
                 else:
-                    consecutive_zero_query += 1
-        except KeyError:
-            pass
+                    total_tweet_count += parsed['meta']['result_count']
+                    tweet_count += len(data)
+                    pbar.update(tweet_count)
+                    if (tweet_count > 0):
+                        consecutive_zero_query = 0
+                    else:
+                        consecutive_zero_query += 1
+            except KeyError:
+                pass
 
-        if (next_token is None): break
+            if (next_token is None): break
 
-        time.sleep(2)
+            time.sleep(2)
 
-    if (verbose):
-        if (place is None):
-            print(f"Made {request_count} requests and received {tweet_count} Tweets from Query: {input_query}")
-        else:
-            print(f"Made {request_count} requests and received {total_tweet_count} Tweets of which {tweet_count} were relevant from Query: {input_query}")
-    try:
-        with open(output_file, 'w') as outfile:
-            json.dump(query_result, outfile)
-    except:
-        print("Printing to output file failed: " + outfile + " dumping to temp.txt")
-        with open("temp.txt", 'w') as outfile:
-            json.dump(query_result, outfile)
+        if (verbose):
+            if (place is None):
+                print(f"Made {request_count} requests and received {tweet_count} Tweets from Query: {input_query}")
+            else:
+                print(f"Made {request_count} requests and received {total_tweet_count} Tweets of which {tweet_count} were relevant from Query: {input_query}")
+        try:
+            with open(output_file, 'w') as outfile:
+                json.dump(query_result, outfile)
+        except:
+            print("Printing to output file failed: " + outfile + " dumping to temp.txt")
+            with open("temp.txt", 'w') as outfile:
+                json.dump(query_result, outfile)
 
