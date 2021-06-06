@@ -210,8 +210,8 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
                 else:
                     total_tweet_count += parsed['meta']['result_count']
                     tweet_count += len(data)
-                    pbar.update(tweet_count)
-                    if (tweet_count > 0):
+                    pbar.update(len(data))
+                    if (len(data) > 0):
                         consecutive_zero_query = 0
                     else:
                         consecutive_zero_query += 1
