@@ -37,15 +37,15 @@ if __name__ == "__main__":
     print("Pulling Latest Statuses")
     statuses = get_tweets()
 	
-	for status in statuses:
-	    print("Tweet Content: " + status.text)
+    for status in statuses:
+        print("Tweet Content: " + status.text)
 
-	# Post a tweet and image to Twitter
+    # Post a tweet and image to Twitter
     print("Creating Initial Tweet")
     text = "This tweet and image will change the world!"
     id = tweet(text, image_path="./img/change_the_world.png")
 	
-	# Post a follow up reply
+    # Post a follow up reply
     text = "This one too!"
     id = tweet(text, image_path="./img/change_the_world_2.png", in_reply_to_status_id=id)
 ```
@@ -56,9 +56,9 @@ from twitterutils import recent_search_query
 
 if __name__ == "__main__":
     # Pull latest 1000 tweets about the entity North Dakota	
-	recent_search_query(f"-is:retweet lang:en North Dakota", 
-                                output_file="nd.txt", 
-                                place="North Dakota", 
-                                max_results = 1000)
+    recent_search_query(f"-is:retweet lang:en North Dakota", 
+                        output_file="nd.txt", 
+                        place="North Dakota", 
+                        max_results = 1000)
 ```
 
