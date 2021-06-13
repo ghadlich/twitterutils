@@ -166,6 +166,7 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
     total_tweet_count=0
 
     query_result = []
+    query_result_raw = []
     next_token = None
 
     consecutive_zero_query = 0
@@ -183,19 +184,37 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
 
             raw_data = parsed["data"]
 
+            query_result_raw += raw_data
+
             if (place is None):
                 data = raw_data
             else:
                 data = []
                 for tweet in raw_data:
+                    done = False
                     try:
                         for annotation in tweet['entities']['annotations']:
                             if (annotation['type'] == "Place" and
                                 annotation['probability'] > 0.5 and
-                                place in annotation['normalized_text']):
+                                (place.lower() == annotation['normalized_text'].lower() or 
+                                 f"{place} State".lower() == annotation['normalized_text'].lower())):
                                 data.append(tweet)
+                                done = True
+                                break
                     except KeyError:
+                        pass
+
+                    if done == True:
                         continue
+
+                    try:
+                        # Try Hashtags
+                        for annotation in tweet['entities']['hashtags']:
+                            if (place.lower().replace(" ","") == annotation['tag'].lower()):
+                                data.append(tweet)
+                                break
+                    except KeyError:
+                        pass
 
             query_result += data
 
@@ -207,6 +226,7 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
             try:
                 if (place is None):
                     tweet_count  += parsed['meta']['result_count']
+                    pbar.update(parsed['meta']['result_count'])
                 else:
                     total_tweet_count += parsed['meta']['result_count']
                     tweet_count += len(data)
@@ -230,6 +250,10 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
         try:
             with open(output_file, 'w') as outfile:
                 json.dump(query_result, outfile)
+
+            if len(query_result_raw) != len(query_result):
+                with open(output_file.replace(".txt", "_raw.txt"), 'w') as outfile:
+                    json.dump(query_result_raw, outfile)
         except:
             print("Printing to output file failed: " + outfile + " dumping to temp.txt")
             with open("temp.txt", 'w') as outfile:
