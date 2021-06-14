@@ -79,7 +79,7 @@ def tweet(status_text, image_path=None, enable_tweet=True, in_reply_to_status_id
 
     return ret
 
-def get_tweets(count = 800, verbose=True):
+def get_tweets(count = 800, output_file=None,verbose=True):
     """
     Pulls Tweets from Authenticated Twitter User
 
@@ -99,9 +99,9 @@ def get_tweets(count = 800, verbose=True):
         time.sleep(2)
         queries += 1
         if max_id == None:
-            query = api.home_timeline(count=200, exclude_replies=True)
+            query = api.home_timeline(count=200, exclude_replies=True, tweet_mode='extended')
         else:
-            query = api.home_timeline(count=200, exclude_replies=True, max_id=max_id)
+            query = api.home_timeline(count=200, exclude_replies=True, max_id=max_id, tweet_mode='extended')
 
         if len(query) == 0:
             break
@@ -116,6 +116,36 @@ def get_tweets(count = 800, verbose=True):
 
     if verbose:
         print("Found " + str(len(ret)) + " tweets")
+
+    if output_file != None:
+        output = []
+
+        for item in ret:
+            tweet = dict()
+
+            tweet["author_id"] = item.author.id_str
+            tweet["id"] = item.id_str
+            tweet["lang"] = item.lang
+            tweet["text"] = item.full_text
+            tweet["source"] = item.source
+            tweet["author"] = item.author.screen_name
+            tweet["author_name"] = item.author.name
+            tweet["author_followers"] = item.author.followers_count
+            tweet["author_following"] = item.author.friends_count
+            tweet["created_at"] = item.created_at.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+            tweet["public_metrics"] = dict()
+            tweet["public_metrics"]["retweet_count"] = item.retweet_count
+            tweet["public_metrics"]["reply_count"] = 0
+            tweet["public_metrics"]["like_count"] = item.favorite_count
+            tweet["public_metrics"]["quote_count"] = 0
+
+            tweet["entities"] = item.entities
+
+            output.append(tweet)
+
+        with open(output_file, 'w') as outfile:
+            json.dump(output, outfile)
 
     return ret
 
@@ -258,4 +288,3 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
             print("Printing to output file failed: " + outfile + " dumping to temp.txt")
             with open("temp.txt", 'w') as outfile:
                 json.dump(query_result, outfile)
-
