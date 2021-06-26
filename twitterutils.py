@@ -159,7 +159,7 @@ def _get_recent_tweets(query, next_token, num_results):
     num_results = min(num_results, MAX_RESULTS_PER_QUERY)
     num_results = max(num_results, MIN_RESULTS_PER_QUERY)
 
-    url = f"{SEARCH_URL}{query}{OPTIONS}&max_results={num_results}"
+    url = f"{SEARCH_URL}{query}{OPTIONS}&max_results={int(num_results)}"
 
     if (next_token != None):
         url = f"{url}&next_token={next_token}"
