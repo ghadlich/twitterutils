@@ -23,7 +23,6 @@
 import os
 import time
 import tweepy
-from tweepy.error import TweepError
 import urllib.parse
 import requests
 from requests.auth import AuthBase
