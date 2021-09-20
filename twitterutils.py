@@ -54,14 +54,17 @@ def tweet(status_text, image_path=None, enable_tweet=True, in_reply_to_status_id
         # Set up tweepy
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
-        api = tweepy.API(auth)
+        api = tweepy.API(auth, retry_count=3, retry_delay=1, timeout=120, wait_on_rate_limit=True)
 
         # Prep status
         status = status_text
 
         # Upload Image
         if (image_path != None):
-            ret = api.media_upload(image_path)
+            if "mp4" in image_path:
+                ret = api.media_upload(image_path, chunk_size=5*1024*1024, media_category="tweet_video")
+            else:
+                ret = api.media_upload(image_path)
             media_ids = [ret.media_id]
         else:
             media_ids = None
