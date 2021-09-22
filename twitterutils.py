@@ -69,12 +69,11 @@ def tweet(status_text, image_path=None, enable_tweet=True, in_reply_to_status_id
         else:
             media_ids = None
 
-        # If this is a reply, add in TWITTER_USER to front
-        if (in_reply_to_status_id != None):
-            status_text = f"{TWITTER_USER} {status_text}"
-
         # Upload Status
-        status_ret = api.update_status(status=status, media_ids=media_ids, in_reply_to_status_id=in_reply_to_status_id)
+        status_ret = api.update_status(status=status,
+                                       media_ids=media_ids,
+                                       in_reply_to_status_id=in_reply_to_status_id,
+                                       auto_populate_reply_metadata=True)
         ret = status_ret.id
     else:
         print("Would have tweeted: " + status_text)
@@ -89,7 +88,7 @@ def get_tweets(count = 800, output_file=None,verbose=True):
     """
     auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
-    api = tweepy.API(auth)
+    api = tweepy.API(auth, retry_count=3, retry_delay=1, timeout=120, wait_on_rate_limit=True)
 
     ret = []
 
