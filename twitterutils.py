@@ -188,7 +188,27 @@ def _get_recent_tweets(query, next_token, num_results):
     return response
     
 
-def recent_search_query(input_query, output_file, place=None, max_results = 3000, verbose=False):
+def recent_search_query(input_query, output_file, place=None, max_results = 3000, max_raw_tweets = 10000, verbose=False):
+    """
+    Does a recent search for an input query. If a place is included, it will attempt to retrieve
+    max_results from the query up until max_raw_tweets is achieved.
+
+    input_query - Query to Search Twitter
+
+    output_file - Output file to place the result
+
+    place - Checks the twitter annotations for a specific place (such as a State name)
+
+    max_results - Target net number of results
+
+    max_raw_tweets - Maximum number of raw tweets pre filter
+
+    Returns:
+    tweet_count - Number of Tweets found that matched filtering
+
+    total_tweet_count - Total Number of Raw Tweets pulled
+
+    """
     query = urllib.parse.quote(input_query)
 
     #As we page through results, we will be counting these: 
@@ -204,7 +224,7 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
     MAX_CONSECUTIVE_ZERO_QUERIES = 5
 
     with tqdm(total=max_results, position=0, leave=True, desc=output_file) as pbar:
-        while tweet_count < max_results and consecutive_zero_query <= MAX_CONSECUTIVE_ZERO_QUERIES:
+        while tweet_count < max_results and consecutive_zero_query <= MAX_CONSECUTIVE_ZERO_QUERIES and total_tweet_count < max_raw_tweets:
             #loop body
             request_count += 1
             if (place is None):
@@ -256,6 +276,7 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
 
             try:
                 if (place is None):
+                    total_tweet_count += parsed['meta']['result_count']
                     tweet_count  += parsed['meta']['result_count']
                     pbar.update(parsed['meta']['result_count'])
                 else:
@@ -289,3 +310,5 @@ def recent_search_query(input_query, output_file, place=None, max_results = 3000
             print("Printing to output file failed: " + outfile + " dumping to temp.txt")
             with open("temp.txt", 'w') as outfile:
                 json.dump(query_result, outfile)
+
+    return tweet_count, total_tweet_count
