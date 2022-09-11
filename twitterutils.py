@@ -173,17 +173,29 @@ def _get_recent_tweets(query, next_token, num_results):
 
     while attempts > 0:
         attempts = attempts-1
-        response = requests.get(url, headers=header)
+        try:
+            response = requests.get(url, headers=header)
 
-        if response.status_code == 200:
-            # Success
-            break
-        elif response.status_code == 503:
-            print (f"Error with request (HTTP error code: {response.status_code} - {response.reason} - sleeping 30 seconds")
+            # Process Response
+            if response.status_code == 200:
+                # Success
+                break
+            elif response.status_code == 503:
+                print (f"Error with request (HTTP error code: {response.status_code} - {response.reason} - sleeping 30 seconds")
+                time.sleep(30)
+            elif response.status_code != 200:
+                print (f"Error with request (HTTP error code: {response.status_code} - {response.reason} - sleeping 60 seconds")
+                time.sleep(60)
+        # Catch Exceptions
+        except requests.exceptions.Timeout:
+            print (f"Error with request (Error code: Timeout - sleeping 30 seconds")
             time.sleep(30)
-        elif response.status_code != 200:
-            print (f"Error with request (HTTP error code: {response.status_code} - {response.reason} - sleeping 60 seconds")
-            time.sleep(60)
+        except requests.exceptions.TooManyRedirects:
+            print (f"Error with request (Error code: Too Many Redirects - sleeping 30 seconds")
+            time.sleep(30)
+        except requests.exceptions.RequestException as e:
+            print (f"Error with request (Error code: {e} - sleeping 30 seconds")
+            time.sleep(30)
 
     return response
     
