@@ -19,7 +19,8 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE. 
+# THE SOFTWARE.
+from requests_oauthlib import OAuth1Session
 import os
 import time
 import tweepy
@@ -57,7 +58,7 @@ def tweet(status_text, image_path=None, enable_tweet=True, in_reply_to_status_id
         api = tweepy.API(auth, retry_count=3, retry_delay=1, timeout=120, wait_on_rate_limit=True)
 
         # Prep status
-        status = status_text
+        # status = status_text
 
         # Upload Image
         if (image_path != None):
@@ -65,16 +66,56 @@ def tweet(status_text, image_path=None, enable_tweet=True, in_reply_to_status_id
                 ret = api.media_upload(image_path, chunk_size=5*1024*1024, media_category="tweet_video")
             else:
                 ret = api.media_upload(image_path)
-            media_ids = [ret.media_id]
+            media_ids = [str(ret.media_id)]
         else:
             media_ids = None
 
-        # Upload Status
-        status_ret = api.update_status(status=status,
-                                       media_ids=media_ids,
-                                       in_reply_to_status_id=in_reply_to_status_id,
-                                       auto_populate_reply_metadata=True)
-        ret = status_ret.id
+        # Upload Status - No Longer works
+        # status_ret = api.update_status(status=status,
+        #                                media_ids=media_ids,
+        #                                in_reply_to_status_id=in_reply_to_status_id,
+        #                                auto_populate_reply_metadata=True)
+        # ret = status_ret.id
+
+
+        # Make the request manually
+        oauth = OAuth1Session(
+            CONSUMER_KEY,
+            client_secret=CONSUMER_SECRET,
+            resource_owner_key=ACCESS_TOKEN,
+            resource_owner_secret=ACCESS_TOKEN_SECRET,
+        )
+
+        payload = {"text": status_text}
+        if in_reply_to_status_id != None:
+            payload["reply"] = {"in_reply_to_tweet_id": in_reply_to_status_id}
+        if media_ids != None:
+            payload["media"] = {"media_ids": media_ids}
+
+        # Make the request
+        response = oauth.post(
+            "https://api.twitter.com/2/tweets",
+            json=payload,
+        )
+
+        if response.status_code != 201:
+            raise Exception(
+                "Request returned an error: {} {}".format(response.status_code, response.text)
+            )
+
+        print("Response code: {}".format(response.status_code))
+
+        # Saving the response as JSON
+        json_response = response.json()
+        print(json.dumps(json_response, indent=4, sort_keys=True))
+
+        if "data" in json_response and "id" in json_response["data"]:
+            id = json_response["data"]["id"]
+            ret = id
+        else:
+            print("Did not receive a tweet id")
+            ret = None
+
     else:
         print("Would have tweeted: " + status_text)
 
